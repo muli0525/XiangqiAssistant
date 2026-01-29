@@ -10,11 +10,19 @@ import kotlin.math.min
  * 象棋棋盘视图
  * 用于悬浮窗显示小棋盘
  */
-class ChessBoardView @JvmOverloads constructor(
-    context: Context,
-    attrs: AttributeSet? = null,
-    defStyleAttr: Int = 0
-) : View(context, attrs, defStyleAttr) {
+class ChessBoardView : View {
+    
+    constructor(context: Context) : super(context) {
+        init()
+    }
+    
+    constructor(context: Context, attrs: AttributeSet?) : super(context, attrs) {
+        init()
+    }
+    
+    constructor(context: Context, attrs: AttributeSet?, defStyleAttr: Int) : super(context, attrs, defStyleAttr) {
+        init()
+    }
 
     private val boardPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val linePaint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -33,7 +41,7 @@ class ChessBoardView @JvmOverloads constructor(
     private var bestMoveFrom: Pair<Int, Int>? = null
     private var bestMoveTo: Pair<Int, Int>? = null
     
-    init {
+    private fun init() {
         // 棋盘背景
         boardPaint.color = Color.parseColor("#F5DEB3")
         boardPaint.style = Paint.Style.FILL
