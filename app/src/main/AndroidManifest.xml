@@ -42,7 +42,12 @@
         <service
             android:name=".service.FloatingWindowService"
             android:enabled="true"
-            android:exported="false" />
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="象棋助手悬浮窗服务" />
+        </service>
         
         <!-- 截屏服务 -->
         <service
