@@ -30,8 +30,7 @@ class FloatingWindowService : Service() {
         super.onCreate()
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         engine = PikafishEngine(this)
-        createNotificationChannel()
-        startForeground(NOTIFICATION_ID, createNotification())
+        // 悬浮窗不需要前台服务通知
     }
     
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
