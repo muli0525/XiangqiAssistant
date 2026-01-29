@@ -8,12 +8,12 @@ import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import android.view.*
+import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
-import androidx.core.app.NotificationCompat
-import com.xiangqi.assistant.MainActivity
 import com.xiangqi.assistant.R
 import com.xiangqi.assistant.engine.PikafishEngine
+import com.xiangqi.assistant.view.ChessBoardView
 import kotlinx.coroutines.*
 
 class FloatingWindowService : Service() {
@@ -22,6 +22,10 @@ class FloatingWindowService : Service() {
     private var floatingView: View? = null
     private lateinit var engine: PikafishEngine
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    
+    private var chessBoard: ChessBoardView? = null
+    private var tvStatus: TextView? = null
+    private var tvBestMove: TextView? = null
     
     private var initialX = 0
     private var initialY = 0
@@ -86,7 +90,8 @@ class FloatingWindowService : Service() {
             
             // 显示初始状态
             updateStatus("悬浮窗已启动 (模拟模式)")
-            updateMoves(listOf("车二平五", "马８进７", "马二进三"))
+            chessBoard?.setInitialPosition()
+            updateBestMove("车二平五")
             
         } catch (e: Exception) {
             Log.e(TAG, "创建悬浮窗失败", e)
@@ -123,25 +128,40 @@ class FloatingWindowService : Service() {
             stopSelf()
         }
         
-        floatingView?.findViewById<View>(R.id.btn_analyze)?.setOnClickListener {
+        floatingView?.findViewById<Button>(R.id.btn_analyze)?.setOnClickListener {
             analyzePosition()
         }
+        
+        // 获取View引用
+        chessBoard = floatingView?.findViewById(R.id.chess_board)
+        tvStatus = floatingView?.findViewById(R.id.tv_status)
+        tvBestMove = floatingView?.findViewById(R.id.tv_best_move)
     }
     
     private fun analyzePosition() {
         serviceScope.launch {
             try {
+                updateStatus("正在分析...")
+                
                 // 获取当前棋盘局面（从屏幕识别服务）
                 val fen = ScreenCaptureService.currentPosition
                 
                 if (fen != null) {
+                    // 更新棋盘显示
+                    chessBoard?.setPositionFromFen(fen)
+                    
                     // 使用引擎分析
                     val result = withContext(Dispatchers.IO) {
                         engine.analyze(fen, depth = 20)
                     }
                     
-                    // 更新悬浮窗显示
-                    updateMoves(result)
+                    // 更新走法显示
+                    if (result.isNotEmpty()) {
+                        updateBestMove(result[0])
+                        updateStatus("分析完成")
+                    } else {
+                        updateStatus("未找到走法")
+                    }
                 } else {
                     updateStatus("未识别到棋盘")
                 }
@@ -151,44 +171,12 @@ class FloatingWindowService : Service() {
         }
     }
     
-    private fun updateMoves(moves: List<String>) {
-        floatingView?.findViewById<TextView>(R.id.tv_move1)?.text = 
-            if (moves.isNotEmpty()) "1. ${moves[0]}" else "1. ---"
-        floatingView?.findViewById<TextView>(R.id.tv_move2)?.text = 
-            if (moves.size > 1) "2. ${moves[1]}" else "2. ---"
-        floatingView?.findViewById<TextView>(R.id.tv_move3)?.text = 
-            if (moves.size > 2) "3. ${moves[2]}" else "3. ---"
+    private fun updateBestMove(move: String) {
+        tvBestMove?.text = "最佳: $move"
     }
     
     private fun updateStatus(status: String) {
-        floatingView?.findViewById<TextView>(R.id.tv_status)?.text = status
-    }
-    
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                "悬浮窗服务",
-                NotificationManager.IMPORTANCE_LOW
-            )
-            val manager = getSystemService(NotificationManager::class.java)
-            manager.createNotificationChannel(channel)
-        }
-    }
-    
-    private fun createNotification(): Notification {
-        val intent = Intent(this, MainActivity::class.java)
-        val pendingIntent = PendingIntent.getActivity(
-            this, 0, intent,
-            PendingIntent.FLAG_IMMUTABLE
-        )
-        
-        return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("象棋辅助工具")
-            .setContentText("悬浮窗正在运行")
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentIntent(pendingIntent)
-            .build()
+        tvStatus?.text = status
     }
     
     override fun onDestroy() {
@@ -202,7 +190,5 @@ class FloatingWindowService : Service() {
     
     companion object {
         private const val TAG = "FloatingWindowService"
-        private const val CHANNEL_ID = "floating_window_channel"
-        private const val NOTIFICATION_ID = 1001
     }
 }
