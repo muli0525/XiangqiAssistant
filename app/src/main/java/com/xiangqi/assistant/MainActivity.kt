@@ -102,11 +102,7 @@ class MainActivity : AppCompatActivity() {
     
     private fun startFloatingWindow() {
         val intent = Intent(this, FloatingWindowService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(intent)
-        } else {
-            startService(intent)
-        }
+        startService(intent)  // 不需要 startForegroundService
         Toast.makeText(this, "悬浮窗已启动", Toast.LENGTH_SHORT).show()
         
         // 更新UI

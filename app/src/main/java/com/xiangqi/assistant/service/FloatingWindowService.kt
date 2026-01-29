@@ -41,34 +41,45 @@ class FloatingWindowService : Service() {
     }
     
     private fun createFloatingWindow() {
-        // 创建悬浮窗布局
-        floatingView = LayoutInflater.from(this).inflate(R.layout.floating_window, null)
-        
-        // 设置悬浮窗参数
-        val params = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-            } else {
-                WindowManager.LayoutParams.TYPE_PHONE
-            },
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-            PixelFormat.TRANSLUCENT
-        )
-        
-        params.gravity = Gravity.TOP or Gravity.START
-        params.x = 100
-        params.y = 100
-        
-        // 添加到窗口
-        windowManager.addView(floatingView, params)
-        
-        // 设置拖动
-        setupDragging(params)
-        
-        // 设置点击事件
-        setupClickListeners()
+        try {
+            // 创建悬浮窗布局
+            floatingView = LayoutInflater.from(this).inflate(R.layout.floating_window, null)
+            
+            // 设置悬浮窗参数
+            val params = WindowManager.LayoutParams(
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                } else {
+                    WindowManager.LayoutParams.TYPE_PHONE
+                },
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                PixelFormat.TRANSLUCENT
+            )
+            
+            params.gravity = Gravity.TOP or Gravity.START
+            params.x = 100
+            params.y = 100
+            
+            // 添加到窗口
+            windowManager.addView(floatingView, params)
+            
+            // 设置拖动
+            setupDragging(params)
+            
+            // 设置点击事件
+            setupClickListeners()
+            
+            // 显示初始状态
+            updateStatus("悬浮窗已启动 (模拟模式)")
+            updateMoves(listOf("车二平五", "马８进７", "马二进三"))
+            
+        } catch (e: Exception) {
+            e.printStackTrace()
+            // 如果创建失败，停止服务
+            stopSelf()
+        }
     }
     
     private fun setupDragging(params: WindowManager.LayoutParams) {
