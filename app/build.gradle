@@ -48,8 +48,9 @@ dependencies {
     implementation 'com.google.android.material:material:1.11.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
     
-    // OpenCV for Android
-    implementation 'org.opencv:opencv:4.8.0'
+    // OpenCV for Android - 暂时注释掉，先编译基础版本
+    // 后续可以手动添加 OpenCV SDK
+    // implementation 'org.opencv:opencv:4.8.0'
     
     // Coroutines
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'

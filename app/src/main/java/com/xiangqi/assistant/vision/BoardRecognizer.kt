@@ -1,140 +1,68 @@
 package com.xiangqi.assistant.vision
 
 import android.graphics.Bitmap
-import org.opencv.android.Utils
-import org.opencv.core.*
-import org.opencv.imgproc.Imgproc
 
 /**
  * 棋盘识别器
- * 使用 OpenCV 识别屏幕上的象棋棋盘
+ * 当前版本：模拟识别（不依赖 OpenCV）
+ * 完整版需要集成 OpenCV SDK 进行真实识别
  */
 class BoardRecognizer {
     
+    /**
+     * 识别棋盘并返回 FEN 字符串
+     * 当前返回初始局面
+     */
     fun recognize(bitmap: Bitmap): String? {
         try {
-            // 转换为 OpenCV Mat
-            val mat = Mat()
-            Utils.bitmapToMat(bitmap, mat)
-            
-            // 转换为灰度图
-            val gray = Mat()
-            Imgproc.cvtColor(mat, gray, Imgproc.COLOR_RGB2GRAY)
-            
-            // 边缘检测
-            val edges = Mat()
-            Imgproc.Canny(gray, edges, 50.0, 150.0)
-            
-            // 检测直线（棋盘网格）
-            val lines = Mat()
-            Imgproc.HoughLinesP(edges, lines, 1.0, Math.PI / 180, 100, 100.0, 10.0)
-            
-            // 分析直线，找出棋盘区域
-            val board = detectBoardGrid(lines)
-            
-            if (board != null) {
-                // 识别棋子
-                val position = detectPieces(mat, board)
-                return positionToFen(position)
-            }
-            
-            return null
+            // 模拟版本：返回象棋初始局面的 FEN
+            // 完整版需要使用 OpenCV 进行图像识别
+            return getInitialPosition()
         } catch (e: Exception) {
             e.printStackTrace()
             return null
         }
     }
     
-    private fun detectBoardGrid(lines: Mat): Board? {
-        // 简化版：返回固定区域
-        // 实际应该分析直线找出棋盘
-        return Board(
-            x = 100,
-            y = 200,
-            cellSize = 50
-        )
+    /**
+     * 获取象棋初始局面
+     */
+    private fun getInitialPosition(): String {
+        // 象棋标准开局 FEN
+        return "rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR w - - 0 1"
     }
     
-    private fun detectPieces(mat: Mat, board: Board): Array<Array<String?>> {
-        // 创建空棋盘
-        val position = Array(10) { Array<String?>(9) { null } }
-        
-        // 遍历每个交叉点
-        for (row in 0 until 10) {
-            for (col in 0 until 9) {
-                val x = board.x + col * board.cellSize
-                val y = board.y + row * board.cellSize
-                
-                // 提取该位置的小区域
-                val roi = extractROI(mat, x, y, board.cellSize / 2)
-                
-                // 识别棋子
-                val piece = recognizePiece(roi)
-                position[row][col] = piece
-            }
+    /**
+     * 识别棋盘位置（返回棋盘在屏幕上的坐标）
+     * 当前返回屏幕中央区域
+     */
+    fun recognizeBoard(bitmap: Bitmap): BoardPosition? {
+        try {
+            // 模拟版本：返回屏幕中央 80% 区域作为棋盘
+            val width = bitmap.width
+            val height = bitmap.height
+            val margin = 0.1f
+            
+            return BoardPosition(
+                left = (width * margin).toInt(),
+                top = (height * margin).toInt(),
+                right = (width * (1 - margin)).toInt(),
+                bottom = (height * (1 - margin)).toInt()
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
         
-        return position
+        return null
     }
     
-    private fun extractROI(mat: Mat, x: Int, y: Int, size: Int): Mat {
-        val rect = Rect(
-            maxOf(0, x - size),
-            maxOf(0, y - size),
-            minOf(size * 2, mat.cols() - x + size),
-            minOf(size * 2, mat.rows() - y + size)
-        )
-        return mat.submat(rect)
-    }
-    
-    private fun recognizePiece(roi: Mat): String? {
-        // 简化版：基于颜色判断
-        // 实际应该使用 OCR 或 CNN 模型识别棋子
-        
-        val avgColor = Core.mean(roi)
-        
-        // 判断是否有棋子（基于亮度）
-        if (avgColor.`val`[0] < 100) {
-            return null // 没有棋子
-        }
-        
-        // 简单判断红黑方
-        // 实际需要更复杂的识别逻辑
-        return if (avgColor.`val`[0] > 150) "R" else "r"
-    }
-    
-    private fun positionToFen(position: Array<Array<String?>>): String {
-        val fenRows = mutableListOf<String>()
-        
-        for (row in position) {
-            var fenRow = ""
-            var empty = 0
-            
-            for (piece in row) {
-                if (piece == null) {
-                    empty++
-                } else {
-                    if (empty > 0) {
-                        fenRow += empty.toString()
-                        empty = 0
-                    }
-                    fenRow += piece
-                }
-            }
-            
-            if (empty > 0) {
-                fenRow += empty.toString()
-            }
-            
-            fenRows.add(fenRow)
-        }
-        
-        return fenRows.joinToString("/") + " w - - 0 1"
-    }
-    
-    data class Board(
-        val x: Int,
-        val y: Int,
-        val cellSize: Int
+    /**
+     * 棋盘位置数据类
+     */
+    data class BoardPosition(
+        val left: Int,
+        val top: Int,
+        val right: Int,
+        val bottom: Int
     )
 }
