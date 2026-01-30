@@ -13,14 +13,14 @@ class BoardRecognizer {
      * 识别棋盘并返回 FEN 字符串
      * 当前返回初始局面
      */
-    fun recognize(bitmap: Bitmap): String? {
-        try {
+    fun recognize(bitmap: Bitmap): Result<String?> {
+        return try {
             // 模拟版本：返回象棋初始局面的 FEN
             // 完整版需要使用 OpenCV 进行图像识别
-            return getInitialPosition()
+            val fen = getInitialPosition()
+            Result.success(fen)
         } catch (e: Exception) {
-            e.printStackTrace()
-            return null
+            Result.failure(e)
         }
     }
     

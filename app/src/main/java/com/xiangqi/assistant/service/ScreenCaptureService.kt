@@ -15,6 +15,7 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.xiangqi.assistant.MainActivity
 import com.xiangqi.assistant.R
+import com.xiangqi.assistant.data.DataManager
 import com.xiangqi.assistant.vision.BoardRecognizer
 import kotlinx.coroutines.*
 
@@ -25,6 +26,14 @@ class ScreenCaptureService : Service() {
     private var imageReader: ImageReader? = null
     private val boardRecognizer = BoardRecognizer()
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private var captureJob: Job? = null
+    private var isCapturing = false
+    
+    companion object {
+        private const val TAG = "ScreenCaptureService"
+        private const val CHANNEL_ID = "screen_capture_channel"
+        private const val NOTIFICATION_ID = 1002
+    }
     
     override fun onCreate() {
         super.onCreate()
@@ -38,6 +47,9 @@ class ScreenCaptureService : Service() {
         
         if (resultCode == Activity.RESULT_OK && data != null) {
             startScreenCapture(resultCode, data)
+        } else {
+            // 停止截屏
+            stopScreenCapture()
         }
         
         return START_STICKY
@@ -65,9 +77,16 @@ class ScreenCaptureService : Service() {
         startPeriodicCapture()
     }
     
+    private fun stopScreenCapture() {
+        isCapturing = false
+        captureJob?.cancel()
+        captureJob = null
+    }
+    
     private fun startPeriodicCapture() {
-        serviceScope.launch {
-            while (isActive) {
+        isCapturing = true
+        captureJob = serviceScope.launch {
+            while (isActive && isCapturing) {
                 try {
                     captureAndRecognize()
                     delay(1000) // 每秒识别一次
@@ -84,9 +103,11 @@ class ScreenCaptureService : Service() {
             
             // 识别棋盘
             serviceScope.launch(Dispatchers.IO) {
-                val fen = boardRecognizer.recognize(bitmap)
-                if (fen != null) {
-                    currentPosition = fen
+                val result = boardRecognizer.recognize(bitmap)
+                result.onSuccess { fen ->
+                    DataManager.updatePosition(fen)
+                }.onFailure { e ->
+                    Log.e(TAG, "识别棋盘失败", e)
                 }
             }
         }
@@ -99,25 +120,55 @@ class ScreenCaptureService : Service() {
         val rowStride = planes[0].rowStride
         val rowPadding = rowStride - pixelStride * image.width
         
+        // 如果没有行填充，直接创建位图
+        if (rowPadding == 0) {
+            val bitmap = Bitmap.createBitmap(
+                image.width,
+                image.height,
+                Bitmap.Config.ARGB_8888
+            )
+            buffer.rewind()
+            bitmap.copyPixelsFromBuffer(buffer)
+            return bitmap
+        }
+        
+        // 如果有行填充，需要手动处理每一行
         val bitmap = Bitmap.createBitmap(
-            image.width + rowPadding / pixelStride,
+            image.width,
             image.height,
             Bitmap.Config.ARGB_8888
         )
-        bitmap.copyPixelsFromBuffer(buffer)
         
-        return Bitmap.createBitmap(bitmap, 0, 0, image.width, image.height)
+        buffer.rewind()
+        val pixels = IntArray(image.width * image.height)
+        
+        for (row in 0 until image.height) {
+            for (col in 0 until image.width) {
+                val index = row * image.width + col
+                val bufferIndex = row * rowStride + col * pixelStride
+                pixels[index] = buffer.getInt(bufferIndex)
+            }
+        }
+        
+        bitmap.setPixels(pixels, 0, image.width, 0, 0, image.width, image.height)
+        return bitmap
     }
     
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val notificationManager = getSystemService(NotificationManager::class.java)
+            
+            // 检查渠道是否已存在
+            if (notificationManager.getNotificationChannel(CHANNEL_ID) != null) {
+                return
+            }
+            
             val channel = NotificationChannel(
                 CHANNEL_ID,
                 "屏幕识别服务",
                 NotificationManager.IMPORTANCE_LOW
             )
-            val manager = getSystemService(NotificationManager::class.java)
-            manager.createNotificationChannel(channel)
+            notificationManager.createNotificationChannel(channel)
         }
     }
     
@@ -138,17 +189,16 @@ class ScreenCaptureService : Service() {
     
     override fun onDestroy() {
         super.onDestroy()
+        stopScreenCapture()
         virtualDisplay?.release()
+        virtualDisplay = null
         imageReader?.close()
+        imageReader = null
         mediaProjection?.stop()
+        mediaProjection = null
+        DataManager.clearPosition()
         serviceScope.cancel()
     }
     
     override fun onBind(intent: Intent?): IBinder? = null
-    
-    companion object {
-        private const val CHANNEL_ID = "screen_capture_channel"
-        private const val NOTIFICATION_ID = 1002
-        var currentPosition: String? = null
-    }
 }

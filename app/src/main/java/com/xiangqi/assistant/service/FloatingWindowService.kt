@@ -14,9 +14,11 @@ import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import com.xiangqi.assistant.MainActivity
 import com.xiangqi.assistant.R
+import com.xiangqi.assistant.data.DataManager
 import com.xiangqi.assistant.engine.PikafishEngine
 import com.xiangqi.assistant.view.ChessBoardView
 import kotlinx.coroutines.*
+import android.app.NotificationManager
 
 class FloatingWindowService : Service() {
     
@@ -60,6 +62,13 @@ class FloatingWindowService : Service() {
     
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val notificationManager = getSystemService(NotificationManager::class.java)
+            
+            // 检查渠道是否已存在
+            if (notificationManager.getNotificationChannel(CHANNEL_ID) != null) {
+                return
+            }
+            
             val channel = NotificationChannel(
                 CHANNEL_ID,
                 "象棋助手悬浮窗",
@@ -69,7 +78,6 @@ class FloatingWindowService : Service() {
                 setShowBadge(false)
             }
             
-            val notificationManager = getSystemService(NotificationManager::class.java)
             notificationManager.createNotificationChannel(channel)
             Log.d(TAG, "通知渠道已创建")
         }
@@ -204,8 +212,8 @@ class FloatingWindowService : Service() {
             try {
                 updateStatus("正在分析...")
                 
-                // 获取当前棋盘局面（从屏幕识别服务）
-                val fen = ScreenCaptureService.currentPosition
+                // 获取当前棋盘局面（从 DataManager）
+                val fen = DataManager.getCurrentPosition()
                 
                 if (fen != null) {
                     // 更新棋盘显示

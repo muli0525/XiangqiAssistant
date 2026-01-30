@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import com.xiangqi.assistant.databinding.ActivityMainBinding
 import com.xiangqi.assistant.service.FloatingWindowService
@@ -16,8 +17,40 @@ import com.xiangqi.assistant.service.ScreenCaptureService
 class MainActivity : AppCompatActivity() {
     
     private lateinit var binding: ActivityMainBinding
-    private val REQUEST_CODE_OVERLAY = 1001
-    private val REQUEST_CODE_SCREEN_CAPTURE = 1002
+    
+    // 使用现代的 Activity Result API 替代弃用的 startActivityForResult
+    private val overlayPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (checkOverlayPermission()) {
+            Toast.makeText(this, "悬浮窗权限已授予", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(this, "需要悬浮窗权限才能使用", Toast.LENGTH_LONG).show()
+        }
+    }
+    
+    private val screenCaptureLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK && result.data != null) {
+            // 启动截屏服务
+            val intent = Intent(this, ScreenCaptureService::class.java)
+            intent.putExtra("resultCode", result.resultCode)
+            intent.putExtra("data", result.data)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(intent)
+            } else {
+                startService(intent)
+            }
+            Toast.makeText(this, "屏幕识别已启动", Toast.LENGTH_SHORT).show()
+            
+            // 更新UI
+            binding.btnStartCapture.isEnabled = false
+            binding.btnStopCapture.isEnabled = true
+        } else {
+            Toast.makeText(this, "需要截屏权限才能识别棋盘", Toast.LENGTH_LONG).show()
+        }
+    }
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -90,14 +123,14 @@ class MainActivity : AppCompatActivity() {
                 Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                 Uri.parse("package:$packageName")
             )
-            startActivityForResult(intent, REQUEST_CODE_OVERLAY)
+            overlayPermissionLauncher.launch(intent)
         }
     }
     
     private fun requestScreenCapture() {
         val mediaProjectionManager = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
         val intent = mediaProjectionManager.createScreenCaptureIntent()
-        startActivityForResult(intent, REQUEST_CODE_SCREEN_CAPTURE)
+        screenCaptureLauncher.launch(intent)
     }
     
     private fun startFloatingWindow() {
@@ -128,39 +161,5 @@ class MainActivity : AppCompatActivity() {
         // 更新UI
         binding.btnStartCapture.isEnabled = true
         binding.btnStopCapture.isEnabled = false
-    }
-    
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        
-        when (requestCode) {
-            REQUEST_CODE_OVERLAY -> {
-                if (checkOverlayPermission()) {
-                    Toast.makeText(this, "悬浮窗权限已授予", Toast.LENGTH_SHORT).show()
-                } else {
-                    Toast.makeText(this, "需要悬浮窗权限才能使用", Toast.LENGTH_LONG).show()
-                }
-            }
-            REQUEST_CODE_SCREEN_CAPTURE -> {
-                if (resultCode == Activity.RESULT_OK && data != null) {
-                    // 启动截屏服务
-                    val intent = Intent(this, ScreenCaptureService::class.java)
-                    intent.putExtra("resultCode", resultCode)
-                    intent.putExtra("data", data)
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        startForegroundService(intent)
-                    } else {
-                        startService(intent)
-                    }
-                    Toast.makeText(this, "屏幕识别已启动", Toast.LENGTH_SHORT).show()
-                    
-                    // 更新UI
-                    binding.btnStartCapture.isEnabled = false
-                    binding.btnStopCapture.isEnabled = true
-                } else {
-                    Toast.makeText(this, "需要截屏权限才能识别棋盘", Toast.LENGTH_LONG).show()
-                }
-            }
-        }
     }
 }

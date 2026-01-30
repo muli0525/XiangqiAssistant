@@ -212,16 +212,11 @@ class ChessBoardView : View {
         val isRed = piece[0].isUpperCase()
         
         // 绘制棋子圆圈
-        val circlePaint = Paint(Paint.ANTI_ALIAS_FLAG)
         circlePaint.color = if (isRed) Color.parseColor("#FFE4E1") else Color.parseColor("#F0F0F0")
-        circlePaint.style = Paint.Style.FILL
         canvas.drawCircle(x, y, cellSize * 0.35f, circlePaint)
         
         // 绘制边框
-        val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG)
         borderPaint.color = if (isRed) Color.RED else Color.BLACK
-        borderPaint.strokeWidth = 3f
-        borderPaint.style = Paint.Style.STROKE
         canvas.drawCircle(x, y, cellSize * 0.35f, borderPaint)
         
         // 绘制棋子文字
@@ -230,6 +225,15 @@ class ChessBoardView : View {
         val textBounds = Rect()
         piecePaint.getTextBounds(text, 0, text.length, textBounds)
         canvas.drawText(text, x, y - textBounds.exactCenterY(), piecePaint)
+    }
+    
+    // 添加可复用的 Paint 对象以优化性能
+    private val circlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+    }
+    private val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 3f
     }
     
     private fun getPieceText(piece: String): String {
@@ -272,6 +276,7 @@ class ChessBoardView : View {
             val parts = fen.split(" ")
             val rows = parts[0].split("/")
             
+            // 先清空整个棋盘
             board = Array(10) { Array<String?>(9) { null } }
             
             for (row in 0..9) {
@@ -291,6 +296,8 @@ class ChessBoardView : View {
             invalidate()
         } catch (e: Exception) {
             e.printStackTrace()
+            // 出错时设置初始局面
+            setInitialPosition()
         }
     }
     

@@ -146,12 +146,19 @@ class PikafishEngine(private val context: Context) {
         
         val files = arrayOf("一", "二", "三", "四", "五", "六", "七", "八", "九")
         
+        // UCI 格式：e2e4 (列从 a=0 开始，行从 0-9)
         val fromFile = uci[0] - 'a'
-        val fromRank = uci[1].toString()
+        val fromRank = uci[1] - '0'
         val toFile = uci[2] - 'a'
-        val toRank = uci[3].toString()
+        val toRank = uci[3] - '0'
         
-        return "${files.getOrNull(fromFile)}$fromRank→${files.getOrNull(toFile)}$toRank"
+        // 转换为象棋坐标（行从 1 开始）
+        val fromFileCn = files.getOrNull(fromFile) ?: "?"
+        val fromRankCn = (fromRank + 1)
+        val toFileCn = files.getOrNull(toFile) ?: "?"
+        val toRankCn = (toRank + 1)
+        
+        return "$fromFileCn$fromRankCn→$toFileCn$toRankCn"
     }
     
     private fun sendCommand(command: String) {
